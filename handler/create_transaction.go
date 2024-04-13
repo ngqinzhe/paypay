@@ -46,6 +46,7 @@ func (h *CreateTransactionHandler) Handle(ctx context.Context) gin.HandlerFunc {
 				Message: errs.ErrInvalidRequest.Error(),
 				Error:   "transaction request parameters invalid",
 			})
+			return
 		}
 
 		// update time
@@ -78,7 +79,7 @@ func isValidCreateTransactionRequest(req *model.Transaction) bool {
 	}
 	if amount <= 0 {
 		return false
-	}	
+	}
 	if req.SourceAccountId == 0 {
 		return false
 	}
@@ -136,11 +137,11 @@ func (h *CreateTransactionHandler) createTransaction(ctx context.Context, transa
 		return srcUpdatedBalance, destUpdatedBalance, nil
 	}(ctx, err)
 
-	if err := session.StartTransaction(); err != nil {
+	if err = session.StartTransaction(); err != nil {
 		return "", "", err
 	}
 
-	if err := mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
+	if err = mongo.WithSession(ctx, session, func(sc mongo.SessionContext) error {
 		if err := h.accountDao.UpdateAccount(ctx, sourceAccount.AccountId, bson.D{{"balance", srcUpdatedBalance}}); err != nil {
 			return err
 		}
@@ -154,7 +155,10 @@ func (h *CreateTransactionHandler) createTransaction(ctx context.Context, transa
 	}); err != nil {
 		return "", "", err
 	}
-	return "", "", session.CommitTransaction(ctx)
+	if err = session.CommitTransaction(ctx); err != nil {
+		return "", "", err
+	}
+	return srcUpdatedBalance, destUpdatedBalance, err
 }
 
 func isBalanceEnoughForTransfer(balance, transferAmount float64) bool {
