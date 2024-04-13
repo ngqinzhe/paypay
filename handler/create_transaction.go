@@ -72,6 +72,13 @@ func isValidCreateTransactionRequest(req *model.Transaction) bool {
 	if req.Amount == "" {
 		return false
 	}
+	amount, err := strconv.ParseFloat(req.Amount, 64)
+	if err != nil {
+		return false
+	}
+	if amount <= 0 {
+		return false
+	}	
 	if req.SourceAccountId == 0 {
 		return false
 	}
